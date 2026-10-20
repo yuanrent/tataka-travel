@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash-lite', // 使用配額更多且速度更快的模型
+      model: 'gemini-3.5-flash-lite', // 使用配額更多且速度更快的模型
       contents: prompt,
       config: {
         thinkingConfig: { thinkingBudget: 0 },
