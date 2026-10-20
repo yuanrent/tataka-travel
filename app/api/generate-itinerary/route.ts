@@ -9,20 +9,37 @@ export async function POST(request: Request) {
     }
 
     const ai = new GoogleGenAI({ apiKey });
-    const { destination, days, style } = await request.json();
+    const { destination, startDate, endDate, transport, style } = await request.json();
 
-    const prompt = `你是一位專業旅遊規劃顧問。請為我規劃前往 ${destination} 的 ${days} 天行程，旅遊風格為：${style}。
-請務必嚴格輸出為純 JSON 物件格式（不要包含任何 markdown 標記如 \`\`\`json 或其他文字），格式規範如下：
+    const prompt = `你是一位專業旅遊規劃顧問。
+使用者預計於 ${startDate} 至 ${endDate} 前往「${destination}」。
+偏好交通工具：「${transport}」，風格為：「${style}」。
+
+請提供：
+1. 該日期區間內，${destination} 當地的特色節慶或當季亮點。
+2. 每日行程，包含推薦遊玩時間、簡介與「${transport}」交通建議。
+3. 景點名稱。
+
+請直接輸出緊湊純 JSON（嚴禁包含 markdown 標籤如 \`\`\`json）：
 {
-  "title": "${destination} ${days} 天自由行",
+  "title": "${destination} ${startDate} 至 ${endDate} 專屬行程",
+  "festivals": [
+    {
+      "name": "節慶/盛事名稱",
+      "date": "活動日期",
+      "description": "30字以內亮點"
+    }
+  ],
   "days": [
     {
       "day": 1,
+      "date": "${startDate}",
       "spots": [
         {
           "name": "景點名稱",
           "time": "09:00",
-          "description": "簡介與推薦重點"
+          "description": "25字以內推薦重點",
+          "transportTips": "交通建議"
         }
       ]
     }
@@ -30,12 +47,15 @@ export async function POST(request: Request) {
 }`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-2.5-flash-lite', // 使用配額更多且速度更快的模型
       contents: prompt,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
+        temperature: 0.2,
+      },
     });
 
     let rawText = response.text || '{}';
-    // 清理可能包含的 markdown 標籤
     rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
 
     const itineraryData = JSON.parse(rawText);
