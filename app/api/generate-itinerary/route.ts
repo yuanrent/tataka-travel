@@ -20,14 +20,14 @@ export async function POST(request: Request) {
 2. 每日行程，包含推薦遊玩時間、簡介與「${transport}」交通建議。
 3. 景點名稱。
 
-請直接輸出緊湊純 JSON（嚴禁包含 markdown 標籤如 \`\`\`json）：
+請嚴格按照以下 JSON Schema 回傳資料，勿回傳任何額外文字或 Markdown 標籤：
 {
-  "title": "${destination} ${startDate} 至 ${endDate} 專屬行程",
+  "title": "${destination} 行程",
   "festivals": [
     {
-      "name": "節慶/盛事名稱",
+      "name": "節慶名稱",
       "date": "活動日期",
-      "description": "30字以內亮點"
+      "description": "簡介"
     }
   ],
   "days": [
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         {
           "name": "景點名稱",
           "time": "09:00",
-          "description": "25字以內推薦重點",
+          "description": "亮點簡介",
           "transportTips": "交通建議"
         }
       ]
@@ -46,22 +46,23 @@ export async function POST(request: Request) {
   ]
 }`;
 
-        const response = await ai.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: prompt,
       config: {
+        responseMimeType: 'application/json', // 強制標準 JSON 格式
         temperature: 0.2,
       },
     });
 
-
     let rawText = response.text || '{}';
-    rawText = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    // 防禦性清理常見包裹標籤
+    rawText = rawText.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
 
     const itineraryData = JSON.parse(rawText);
     return NextResponse.json(itineraryData);
   } catch (error: any) {
-    console.error('Gemini API 呼叫失敗：', error);
-    return NextResponse.json({ error: error.message || '行程生成失敗' }, { status: 500 });
+    console.error('Gemini API 處理失敗：', error);
+    return NextResponse.json({ error: error.message || '行程生成解析失敗' }, { status: 500 });
   }
 }
